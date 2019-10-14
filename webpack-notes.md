@@ -206,7 +206,7 @@ module.exports = {
 
 这样就能使用命令： **npm run dev** 来启动。
 
-执行 webpack-dev-server 时会去读取 webpack 的配置文件 webpack.config.js，其中 module.exports 的 mode 必须是"development"，它会监听入口文件和输出文件的变化。在执行 webpack-dev-server 编译后，一旦修改了**文件内容**，webpack-dev-server 就会自动重新编译，浏览器就会随着文件内容的修改自动更新。原因：webpack-dev-server 的工作原理：为了速度起见，它在编译的时候并不是编译到文件里（磁盘上），而是编译到内存里，如果浏览器端运行的我们打包编译好的文件，就会随着编译而实时更新。  
+执行 webpack-dev-server 时会去读取 webpack 的配置文件 webpack.config.js，其中 module.exports 的 mode 必须是"development"，它会监听入口文件和输出文件的变化。在执行 webpack-dev-server 编译后，一旦修改了**文件内容**，webpack-dev-server 就会自动重新编译，浏览器就会随着文件内容的修改自动更新。原因：webpack-dev-server 的工作原理：为了速度起见，它在编译的时候并不是编译到文件里（磁盘上），而是**编译到内存里**，如果浏览器端运行的我们编译好的文件，就会随着编译而实时更新。  
 
 **注意：如果修改的是配置文件的内容，则需要重新打包再编译运行。**  
 
@@ -783,15 +783,386 @@ module.exports = {
 
 
 
+<br>
 
+## 9. 一些实用的 webpack 小插件  
 
+### 9.1 clearWebpackPlugin  
 
+使用该插件可以在编译打包时将原来 `dist` 目录下的文件清空。  
 
+安装：  
 
+    npm install clean-webpack-plugin -D  
 
+```js
+// 引入的是里面的属性，否则会报错：CleanWebpackPlugin is not a constructor
+const { CleanWebpackPlugin } = require('clean-webpack-plugin') 
 
+module.exports = {
+  // ....
+  plugins: [
+    new CleanWebpackPlugin() // 在打包时将原来dist目录下的文件清空
+  ]
+}
+```
 
+### 9.2 CopyWebpackPlugin   
 
+使用这个插件可以编译打包的时候将指定目录或文件拷贝到构建目录 dist :  
 
+安装：  
+
+    npm install copy-webpack-plugin -D  
+
+```js
+const CopyWebpackPlugin = require('copy-webpack-plugin')
+
+module.exports = {
+  // ....
+  plugins: [
+    new CleanWebpackPlugin(), // 在打包时将原来dist目录下的文件清空
+    new CopyWebpackPlugin([   // 接收一个数组，每一项是一个对象，即可以拷贝多个文件或文件夹
+      { from: './doc1' },
+      { from: './doc2', to: './doc2' }
+    ])
+  ]
+}
+```
+
+`{ from: './doc1' }` 表示构建时将 `doc1` 目录下的所有文件拷贝到 `dist` 目录下（默认）  
+`{ from: './doc2', to: './doc2' }` 表示构建时将 `doc2` 目录下的所有文件拷贝到 `dist` 目录下的 `doc2` 文件夹。  
+
+每个对象中的 `from` 是必需的，其他则可以省略。  
+
+### 9.3 BannerPlugin    
+
+`BannerPlugin` 是 webpack **内置**的一个插件，不需要安装第三方模块即可使用，它用于在我们构建的文件中**添加版权申明的注释**
+
+```js
+const Webpack = require('webpack')
+
+module.exports = {
+  // ....
+  output: {
+    filename: 'bundle.js',
+    path: path.resolve(__dirname, 'dist')
+  },
+  plugins: [
+    new CleanWebpackPlugin(), // 在打包时将原来dist目录下的文件清空
+    new CopyWebpackPlugin([   // 接收一个数组，每一项是一个对象，即可以拷贝多个文件或文件夹
+      { from: './doc1' },
+      { from: './doc2', to: './doc2' }
+    ]),
+    new Webpack.BannerPlugin('Created by Vince, 2019')
+  ]
+}
+```
+
+在构建之后，在 `bundle.js` 的最顶部，就会加上 `/*! Created by Vince, 2019 */ ` 这样一段注释。  
+
+<br>
+
+## 10. resolve 属性的配置  
+
+webpack 配置中的 `resolve` 配置，用于解析我们安装的第三方模块：  
+
+```js
+module.exports = {
+  // ....
+  module: {
+    rules: [
+      {
+        test: /\.css$/,
+        use: ['style-loader', 'css-loader']
+      }
+    ]
+  },
+  resolve: { // 解析第三方模块
+    modules: [path.resolve('node_modules'), path.resolve('xxx')],  // 第三方模块的查找路径
+    mainFields: ['style', 'main'], // 查找的入口字段, 表示先查找style字段再查找mai字段
+    // mainFiles: [''], // 入口文件的名字，默认是 index.js
+    extensions: ['js', 'css', 'json'] // 查找的文件的扩展名
+    // alias: { // 别名
+    //   bootstrap: 'bootstrap/dist/css/bootstrap.css'
+    // },
+  }
+}
+```
+
+- `modules`： 第三方模块的查找路径  
+默认情况下，我们安装的第三方模块都是在 `node_modules`中。在上面的示例中，`modules` 配置表示在寻找第三方模块依赖时，先到 `node_modules` 目录下找， 再到 `xxx` 目录下找。  
+<br>
+
+- `mainFields`： 模块的入口字段  
+在我们安装的每个第三方模块中，都有一个 `package.json` 文件，其中定义了一些入口的字段（即入口路径）， 默认情况下，引入模块的入口都是其中定义的 `main` 字段。 通过 `mainFields` 配置，我们可以指定首先查找的入口字段，上面示例中就表示先查找 `style` 字段表示的路径，再去查找 `main` 字段表示的路径。  
+<br>
+
+- `mainFiles`： 入口文件的名字  
+同理，`mainFiles` 表示的就是入口文件的名字，默认情况下都是 `index.js`，们可以直接指定其他的文件名。  
+<br>
+
+- `extensions`： 查找的文件的扩展名  
+很多情况下如果我们在引入一个路径下的 js 文件时，都省略了 `.js` 文件后缀。如果该路径下没有 `.js` 的文件，我们想要引入的是 `.css` 或其他文件，就可以使用 `extensions` 配置。 例如，在上面的示例中，假设 `xxx` 目录下有几种类型的文件，则表示优先引入 `xxx.js` 文件，若没有则引入 `xxx.css` 文件，最后再引入 `xxx.json` 文件。  
+<br>
+
+- `alias`： 别名  
+以键值对的形式，给一些常用的路径配置一个别名，方便引用。  
+
+<br>
+
+## 11. 跨域问题  
+
+**场景**：服务端在 **3000** 端口启动了一个服务  
+
+```js
+// server.js 服务端
+const express = require('express')
+
+let app = express()
+
+app.get('/user', (req, res) => {
+  res.json({name: 'vince'})
+})
+
+app.listen(3000)
+```
+
+在我们的程序中需要请求上面的接口：  
+
+```js
+let xhr = new XMLHttpRequest();
+
+// localhost:8080  是 webpack-dev-server 的服务， 而请求的服务端是 3000 端口 
+xhr.open('GET', '/api/user', true)
+
+xhr.onload = function() {
+  console.log(xhr.response);
+}
+
+xhr.send()
+```
+
+当我们启动 `webpack-dev-server` 服务时，默认的端口是 **8080** ，如果我们要访问 **3000** 端口，就需要跨域。 在开发的过程中，我们可以通过以下几种方式来**解决跨域问题**：  
+
+### 11.1 proxy 代理  
+
+使用 **proxy 代理** 是最常用的方式，其原理是使用了 `http-proxy` 模块，将跨域请求**转发**到响应的地址。  
+
+```js
+module.exports = {
+  //....
+  mode: 'development',
+
+  devServer: {
+    proxy: { // 主要就是使用了 http-proxy 模块 
+      '/api': { // 当请求 '/api' 时，进行转发
+        target: 'http://localhost:3000',  // 配置了一个代理
+        pathRewrite: { '/api': '' } // 用重写路径的方式把请求代理到 express 服务器上
+      }
+    }
+  }
+}
+```
+
+在该示例中，当我们发送请求 `http://localhost:8080/api/user` 时，就会自动转发到 `http://localhost:3000/user`。  
+
+### 11.2 前端模拟数据  
+
+这种方法将服务端的接口写到了前端，主要是用于开发时模拟数据：
+
+```js
+module.exports = {
+  //....
+  mode: 'development',
+
+  devServer: {
+    before(app) { // app 就是服务端的创建的服务实例
+      app.get('/user', (req, res) => {
+        res.json({name: 'vince6'})
+      })
+    }
+}
+```
+
+`webpack-dev-server` 启动服务的原理，就是启用了 `node.js` 的 `express` 服务，所以我们可以直接使用 `express` 中的一个钩子函数 `before()`，在其中定义接口。  
+
+### 11.3 服务端使用 webpack 编译  
+
+这种方式是直接在服务端启动 `webpack` 进行编译, 端口使用服务端的端口 **3000**，这样就没有跨域的问题。  
+
+```js
+// 前端请求：
+xhr.open('GET', '/user', true)
+xhr.onload = function() {
+  console.log(xhr.response);
+}
+xhr.send()
+```
+
+```js
+// 新建一个 server.webpack.js 服务端
+const express = require('express')
+const webpack = require('webpack') // 服务端引入 webpack
+
+let app = express()
+
+// 引入中间件
+let middleware = require('webpack-dev-middleware'); // 需安装
+
+// 引入 webpack 的配置对象
+let config = require('./webpack.config.js');
+
+// webpack 通过配置对象进行编译，输出编译结果
+let compiler = webpack(config);
+
+// 使用中间件
+app.use(middleware(compiler));
+
+app.get('/user', (req, res) => { // 请求 '/user' 时，返回结果，并没有跨域问题
+  res.json({name: 'vince6666'})
+})
+
+app.listen(3000)
+
+```
+
+这个时候，我们不需要启动自己 `webpack-dev-server` 服务，只需要运行 `server.webpack.js`, 相当于就在服务端启动`webpack-dev-server`，端口就是 **3000**。  
+
+在启动服务的时候，`webpack` 先找到配置对象 `config`， 根据配置进行编译后输出编译结果 `compiler`，然后使用引入的 `webpack-dev-middleware` 中间件对编译结果进行处理， 最后我们只需要 `use` 这个中间件，就能够实现在服务端使用 webpackk 进行编译。这时我们访问只需 **3000** 端口，就能得到请求的结果。  
+
+以上就是在开发过程中遇到跨域问题的一些处理方式。  
+
+<br>
+
+## 12. 定义环境变量  
+
+使用 webpack 的内置插件 `DefinePlugin`，允许创建一个在编译时可以配置的**全局常量**。这可能会对开发模式和发布模式的构建允许不同的行为非常有用。  
+
+```js
+// webpack.config.js
+module.exports = {
+  // ....
+
+  plugins: [
+    new webpack.DefinePlugin({
+      // DEV: "dev", // 这样是定义了一个变量 dev, 而不是字符串 'dev'
+      DEV: JSON.stringify("dev"), //字符串 'dev'
+      // EXPRESSION: JSON.stringify('1+1') , // 字符串 1+1 
+      EXPRESSION: '1+1' // 表达式，等于2 
+    })
+  ]
+}
+```
+
+```js
+// 示例： 
+let url;
+
+if(DEV === 'dev') {
+  url = 'http://localhost:3000';
+} else {
+  url = 'http://localhost:8080';
+}
+
+console.log(url) // http://localhost:3000
+console.log(EXPRESSION) // 2
+```
+
+## 13. 区分不同的环境  
+
+当我们项目比较大的时候，通常需要比较多的 webpack 配置，就可能使 `webpack.config.js` 比较臃肿，这种情况下我们可以把开发环境的配置和生产环境的配置分开放到不同的配置文件，将公共配置放到另一个配置文件。  
+
+需要安装 `webpack-merge` ：  
+
+    npm install webpack-merge  
+
+### 13.1 公共配置  
+
+```js
+// webpack.base.js
+const path = require('path')
+const HtmlWebpackPlugin = require('html-webpack-plugin')
+
+/**
+ * 基本配置, 包含 入口文件，出口文件等
+ */
+module.exports = {
+  entry: './src/index.js',
+  output: {
+    filename: 'bundle.js',
+    path: path.resolve(__dirname, 'dist')
+  },
+  plugins: [
+    new HtmlWebpackPlugin({
+      template: './index.html',
+      filename: 'index.html',
+    })
+}
+```
+
+### 13.2 开发环境配置  
+
+```js
+// webpack.dev.js
+const {smart} = require('webpack-merge'); // 引入用于合并的方法
+const base = require('./webpack.config.js'); // 如要引入公共配置
+
+/**
+ * 开发环境配置
+ */
+module.exports = smart(base, { // 合并公共配置
+  mode: 'development',
+  devServer: { // 开发服务
+    // ....
+  },
+  devtool: 'source-map' // 源码映射
+})
+```
+
+### 13.3 生产环境配置  
+
+```js
+// webpack.prod.js
+const {smart} = require('webpack-merge');
+const base = require('./webpack.config.js');
+
+/**
+ * 生产环境配置
+ */
+module.exports = smart(base, {
+  mode: 'production',
+  optimization: { // 优化项
+    minimize: [
+      // .....
+    ]
+  },
+  plugins: [
+    // ....
+  ]
+})
+```
+
+### 13.4 使用的命令  
+
+默认情况下，当我们执行 <code>webpack</code> 命令进行打包的时候，webpack 会默认找到 `webpack.config.js` 文件的配置进行编译打包。  
+
+现在我们想要根据环境的不同来执行不同的配置文件，应该使用如下命令：  
+
+    webpack --config webpack.dev.js  
+    或：
+    webpack -- config webpack.prod.js  
+
+上述情况分别是执行开发环境和生产环境的配置文件，但是每次执行这样的命令，就显得很麻烦。 因此，我们将命令配置在 `package.json` 文件中：  
+
+```js
+"scripts": {
+    // 其他 ...
+    "dev": "webpack-dev-server",
+    "build": "webpack --config webpack.prod.js"
+  }
+```
+
+当我们需要构建生产环境的包时，就可以使用以上的配置，执行 `npm run build` 就相当于真执行 `webpack --config webpack.prod.js`。  
 
 
